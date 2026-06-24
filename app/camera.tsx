@@ -101,11 +101,11 @@ export default function CameraScreen() {
     // Resolve category and title pre-fills
     const { title, description, category, severity } = getUnifiedReportData(detections);
 
-    // Navigate back to the report tab, carrying pre-filled parameters in URL query
+    // Navigate to select-location screen first to place precise pin coordinates
     router.replace({
-      pathname: "/(tabs)/report",
+      pathname: "/select-location",
       params: {
-        photoUrl: capturedPhoto, // carries local compressed URI or storage URL
+        photoUrl: capturedPhoto,
         preTitle: title,
         preDesc: description,
         preCategory: category,

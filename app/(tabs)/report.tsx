@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Camera,
   X,
+  MapPin,
 } from "lucide-react-native";
 import { HazardCategory, HazardSeverity } from "../../src/features/hazards/types";
 
@@ -38,13 +39,19 @@ const SEVERITIES: { value: HazardSeverity; label: string; color: string; activeC
 export default function ReportScreen() {
   const createHazard = useCreateHazard();
   
-  // Read query parameters passed from camera detection workflows
+  // Read query parameters passed from camera detection workflows or select-location
   const params = useLocalSearchParams<{
     photoUrl?: string;
     preTitle?: string;
     preDesc?: string;
     preCategory?: HazardCategory;
     preSeverity?: HazardSeverity;
+    reporterLat?: string;
+    reporterLng?: string;
+    hazardLat?: string;
+    hazardLng?: string;
+    reporterAddress?: string;
+    hazardAddress?: string;
   }>();
 
   const [title, setTitle] = useState("");
@@ -53,14 +60,42 @@ export default function ReportScreen() {
   const [severity, setSeverity] = useState<HazardSeverity>("medium");
   const [attachedPhoto, setAttachedPhoto] = useState<string | null>(null);
 
-  // Pre-fill inputs when returning from the camera analysis screen
+  // States to hold precise location data
+  const [reporterLat, setReporterLat] = useState<number | null>(null);
+  const [reporterLng, setReporterLng] = useState<number | null>(null);
+  const [hazardLat, setHazardLat] = useState<number | null>(null);
+  const [hazardLng, setHazardLng] = useState<number | null>(null);
+  const [reporterAddress, setReporterAddress] = useState<string | null>(null);
+  const [hazardAddress, setHazardAddress] = useState<string | null>(null);
+
+  // Pre-fill inputs when returning from the camera analysis or location selection screen
   useEffect(() => {
     if (params.photoUrl) setAttachedPhoto(params.photoUrl);
     if (params.preTitle) setTitle(params.preTitle);
     if (params.preDesc) setDescription(params.preDesc);
     if (params.preCategory) setCategory(params.preCategory);
     if (params.preSeverity) setSeverity(params.preSeverity);
+    
+    if (params.reporterLat) setReporterLat(parseFloat(params.reporterLat));
+    if (params.reporterLng) setReporterLng(parseFloat(params.reporterLng));
+    if (params.hazardLat) setHazardLat(parseFloat(params.hazardLat));
+    if (params.hazardLng) setHazardLng(parseFloat(params.hazardLng));
+    if (params.reporterAddress) setReporterAddress(params.reporterAddress);
+    if (params.hazardAddress) setHazardAddress(params.hazardAddress);
   }, [params]);
+
+  const handleSelectLocation = () => {
+    router.replace({
+      pathname: "/select-location",
+      params: {
+        photoUrl: attachedPhoto || "",
+        preTitle: title,
+        preDesc: description,
+        preCategory: category,
+        preSeverity: severity,
+      },
+    });
+  };
 
   const handleSubmit = async () => {
     if (!title || !description) {
@@ -68,17 +103,30 @@ export default function ReportScreen() {
       return;
     }
 
-    try {
-      const location_lat = 37.7749 + (Math.random() - 0.5) * 0.02;
-      const location_lng = -122.4194 + (Math.random() - 0.5) * 0.02;
+    if (!hazardLat || !hazardLng) {
+      Alert.alert(
+        "Location Required",
+        "Please select the precise hazard location on the map first.",
+        [
+          { text: "Select Location", onPress: handleSelectLocation },
+          { text: "Cancel", style: "cancel" }
+        ]
+      );
+      return;
+    }
 
+    try {
       const result: any = await createHazard.mutateAsync({
         title,
         description,
         category,
         severity,
-        location_lat,
-        location_lng,
+        location_lat: hazardLat,
+        location_lng: hazardLng,
+        reporter_lat: reporterLat !== null ? reporterLat : undefined,
+        reporter_lng: reporterLng !== null ? reporterLng : undefined,
+        reporter_address: reporterAddress || undefined,
+        hazard_address: hazardAddress || undefined,
         photo_url: attachedPhoto || undefined,
       });
 
@@ -104,6 +152,12 @@ export default function ReportScreen() {
     setCategory("other");
     setSeverity("medium");
     setAttachedPhoto(null);
+    setReporterLat(null);
+    setReporterLng(null);
+    setHazardLat(null);
+    setHazardLng(null);
+    setReporterAddress(null);
+    setHazardAddress(null);
     
     router.push("/(tabs)");
   };
@@ -228,6 +282,62 @@ export default function ReportScreen() {
                 );
               })}
             </View>
+
+            {/* Location Selector / Status Card */}
+            <Text className="text-foreground/75 text-xs font-semibold mb-2 ml-1 select-none">
+              Location Details
+            </Text>
+            {hazardLat !== null && hazardLng !== null ? (
+              <Pressable
+                onPress={handleSelectLocation}
+                className="p-4 mb-5 border border-primary/20 bg-primary/5 rounded-xl flex-col active:bg-primary/10"
+              >
+                <View className="flex-row items-center justify-between mb-2">
+                  <Text className="text-primary text-[10px] font-bold uppercase tracking-wider">
+                    Precise Location Placed
+                  </Text>
+                  <Text className="text-xs text-primary font-bold">Edit Map Pin</Text>
+                </View>
+                
+                <View className="gap-2">
+                  <View className="flex-row items-center">
+                    <View className="w-2 h-2 rounded-full bg-blue-500 mr-2" />
+                    <View className="flex-1">
+                      <Text className="text-muted-foreground text-[9px] font-bold uppercase">Reporter GPS</Text>
+                      <Text className="text-foreground text-[11px] font-medium" numberOfLines={1}>
+                        {reporterAddress || `${reporterLat?.toFixed(5)}, ${reporterLng?.toFixed(5)}`}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View className="flex-row items-center">
+                    <View className="w-2 h-2 rounded-full bg-red-500 mr-2" />
+                    <View className="flex-1">
+                      <Text className="text-muted-foreground text-[9px] font-bold uppercase">Hazard Location</Text>
+                      <Text className="text-foreground text-[11px] font-bold" numberOfLines={1}>
+                        {hazardAddress || `${hazardLat?.toFixed(5)}, ${hazardLng?.toFixed(5)}`}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={handleSelectLocation}
+                className="p-4 mb-5 border border-dashed border-red-500/40 bg-red-500/5 rounded-xl flex-row items-center justify-between active:bg-red-500/10"
+              >
+                <View className="flex-row items-center flex-1 pr-2">
+                  <MapPin size={16} color="hsl(var(--destructive))" className="mr-2" />
+                  <View className="flex-1">
+                    <Text className="text-foreground text-xs font-bold">Hazard location not set</Text>
+                    <Text className="text-muted-foreground text-[10px] font-medium leading-relaxed">
+                      Tap to place a precise pin on the map.
+                    </Text>
+                  </View>
+                </View>
+                <Text className="text-xs text-primary font-bold">Select Pin</Text>
+              </Pressable>
+            )}
 
             <Button
               label="Publish Report"

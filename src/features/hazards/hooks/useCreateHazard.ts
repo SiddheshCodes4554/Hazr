@@ -12,6 +12,10 @@ interface CreateHazardInput {
   location_lat: number;
   location_lng: number;
   photo_url?: string;
+  reporter_lat?: number;
+  reporter_lng?: number;
+  reporter_address?: string;
+  hazard_address?: string;
 }
 
 /**

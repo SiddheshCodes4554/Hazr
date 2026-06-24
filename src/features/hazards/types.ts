@@ -21,6 +21,10 @@ export interface Hazard {
   status: "active" | "resolved";
   resolved_at?: string;
   photo_url?: string; // Optional field for uploaded hazard photo
+  reporter_lat?: number;
+  reporter_lng?: number;
+  reporter_address?: string;
+  hazard_address?: string;
   upvotes_count?: number;
   downvotes_count?: number;
   verifications_count?: number;

@@ -1,7 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { useTheme } from "../../src/components/ThemeProvider";
-import { AlertOctagon, PlusCircle, UserCircle, Map } from "lucide-react-native";
+import { AlertOctagon, PlusCircle, UserCircle, Map, TrendingUp } from "lucide-react-native";
 
 /**
  * Navigation Tabs Layout.
@@ -51,6 +51,15 @@ export default function TabsLayout() {
           title: "Map",
           tabBarIcon: ({ color, size }) => (
             <Map color={color} size={size - 2} strokeWidth={2.2} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="predictions"
+        options={{
+          title: "Forecast",
+          tabBarIcon: ({ color, size }) => (
+            <TrendingUp color={color} size={size - 2} strokeWidth={2.2} />
           ),
         }}
       />

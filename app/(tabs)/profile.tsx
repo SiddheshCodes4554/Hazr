@@ -1,13 +1,14 @@
 import React from "react";
 import { View, Text, ScrollView, Alert, Pressable } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useUser } from "../../src/features/auth/hooks/useUser";
 import { useTheme } from "../../src/components/ThemeProvider";
 import { useSyncStore } from "../../src/store/syncStore";
 import { useProfile, UserRole } from "../../src/features/auth/hooks/useProfile";
 import { Card, CardContent } from "../../src/components/Card";
 import { Button } from "../../src/components/Button";
-import { Sun, Moon, Laptop, ShieldCheck, Award } from "lucide-react-native";
+import { Sun, Moon, Laptop, ShieldCheck, Award, BarChart3 } from "lucide-react-native";
 import { ThemeMode } from "../../src/store/themeStore";
 
 export default function ProfileScreen() {
@@ -118,6 +119,30 @@ export default function ProfileScreen() {
             );
           })()}
         </Card>
+
+        {/* Authority Portal Entry Card Banner */}
+        {(role === "moderator" || role === "municipality") && (
+          <Card className="mb-6 border-primary/20 bg-primary/5">
+            <View className="p-3 flex-row items-center justify-between">
+              <View className="flex-1 pr-3 flex-row items-center">
+                <View className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 justify-center items-center mr-3">
+                  <BarChart3 size={18} color="hsl(var(--primary))" />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-foreground font-black text-xs select-none">Municipal Portal Active</Text>
+                  <Text className="text-muted-foreground text-[10px] select-none mt-0.5">Access city-wide heatmaps, resolution trackers, and inflow trends.</Text>
+                </View>
+              </View>
+              <Button
+                label="Launch"
+                variant="outline"
+                size="sm"
+                className="border-primary/30 text-primary py-2 px-3 text-[11px]"
+                onPress={() => router.push("/authority/dashboard")}
+              />
+            </View>
+          </Card>
+        )}
 
         {/* Role Developer Switcher */}
         <Text className="text-foreground/75 text-xs font-semibold mb-2.5 ml-1 select-none">

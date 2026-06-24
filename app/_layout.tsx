@@ -9,6 +9,7 @@ import { queryClient, asyncStoragePersister } from "../src/api/queryClient";
 import { ThemeProvider, useTheme } from "../src/components/ThemeProvider";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
 import { useSyncQueue } from "../src/features/offline/hooks/useSyncQueue";
+import { useIntelligentAlerts } from "../src/features/alerts/hooks/useIntelligentAlerts";
 
 export const unstable_settings = {
   anchor: "(tabs)",
@@ -24,6 +25,9 @@ function AppContent() {
   
   // Activate the offline-sync worker daemon
   useSyncQueue();
+
+  // Activate the intelligent alert system
+  useIntelligentAlerts();
 
   return (
     <NavigationThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
