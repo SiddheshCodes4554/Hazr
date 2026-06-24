@@ -38,6 +38,14 @@
             "backgroundColor": "#000000"
           }
         }
+      ],
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Hazr to access your camera to capture and automatically detect regional hazards.",
+          "microphonePermission": "Allow Hazr to access your microphone if needed."
+        }
       ]
     ],
     "experiments": {
