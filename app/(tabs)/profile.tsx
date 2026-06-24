@@ -7,14 +7,14 @@ import { useSyncStore } from "../../src/store/syncStore";
 import { useProfile, UserRole } from "../../src/features/auth/hooks/useProfile";
 import { Card, CardContent } from "../../src/components/Card";
 import { Button } from "../../src/components/Button";
-import { Sun, Moon, Laptop, ShieldCheck } from "lucide-react-native";
+import { Sun, Moon, Laptop, ShieldCheck, Award } from "lucide-react-native";
 import { ThemeMode } from "../../src/store/themeStore";
 
 export default function ProfileScreen() {
   const { user, signOut } = useUser();
   const { theme, setTheme } = useTheme();
   const { queue, clearQueue } = useSyncStore();
-  const { role, updateRole, isUpdatingRole } = useProfile();
+  const { profile, role, updateRole, isUpdatingRole } = useProfile();
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to log out of Hazr?", [
@@ -64,7 +64,7 @@ export default function ProfileScreen() {
 
         {/* User Account Info */}
         <Card className="mb-6">
-          <View className="flex-row items-center p-2">
+          <View className="flex-row items-center p-2 pb-4 border-b border-border/20">
             <View className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 justify-center items-center mr-4">
               <ShieldCheck size={22} color="hsl(var(--primary))" />
             </View>
@@ -80,6 +80,43 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+
+          {/* Reputation & Rank Summary */}
+          {(() => {
+            const reputation = profile?.reputation !== undefined ? profile.reputation : 100;
+            let rank = "Novice Watcher";
+            let rankColor = "text-muted-foreground";
+            let rankBg = "bg-muted/15 border-border/30";
+            if (reputation >= 200) {
+              rank = "Community Champion";
+              rankColor = "text-amber-600 dark:text-amber-400";
+              rankBg = "bg-amber-500/10 border-amber-500/20";
+            } else if (reputation >= 120) {
+              rank = "Active Guardian";
+              rankColor = "text-primary";
+              rankBg = "bg-primary/10 border-primary/20";
+            }
+
+            return (
+              <View className="pt-4 px-2 flex-row justify-between items-center">
+                <View className="flex-row items-center">
+                  <Award size={16} color="hsl(var(--primary))" className="mr-2" />
+                  <View>
+                    <Text className="text-foreground font-bold text-xs">Community Reputation</Text>
+                    <Text className="text-muted-foreground text-[10px] mt-0.5">Influences report visibility & trust weight</Text>
+                  </View>
+                </View>
+                <View className={`px-2.5 py-1 rounded-lg border flex-row items-center ${rankBg}`}>
+                  <Text className={`text-[10px] font-black uppercase tracking-wider mr-1.5 ${rankColor}`}>
+                    {rank}
+                  </Text>
+                  <Text className="text-foreground text-xs font-black select-none">
+                    {reputation}
+                  </Text>
+                </View>
+              </View>
+            );
+          })()}
         </Card>
 
         {/* Role Developer Switcher */}

@@ -10,6 +10,7 @@ export interface Profile {
   full_name: string;
   role: UserRole;
   created_at: string;
+  reputation?: number;
 }
 
 /**
@@ -42,6 +43,7 @@ export const useProfile = () => {
             full_name: user.user_metadata?.full_name || "Hazr User",
             role: (user.user_metadata?.role as UserRole) || "citizen",
             created_at: user.created_at,
+            reputation: 100,
           };
         }
 
@@ -53,6 +55,7 @@ export const useProfile = () => {
           full_name: user.user_metadata?.full_name || "Hazr User",
           role: "citizen",
           created_at: user.created_at,
+          reputation: 100,
         };
       }
     },

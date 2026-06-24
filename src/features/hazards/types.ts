@@ -21,6 +21,11 @@ export interface Hazard {
   status: "active" | "resolved";
   resolved_at?: string;
   photo_url?: string; // Optional field for uploaded hazard photo
+  upvotes_count?: number;
+  downvotes_count?: number;
+  verifications_count?: number;
+  fixed_votes_count?: number;
+  trust_score?: number;
 }
 
 export interface BoundingBox {

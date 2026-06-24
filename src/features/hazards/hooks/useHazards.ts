@@ -19,6 +19,11 @@ const MOCK_HAZARDS: Hazard[] = [
     reported_by: "system-demo",
     created_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45m ago
     status: "active",
+    upvotes_count: 14,
+    downvotes_count: 0,
+    verifications_count: 6,
+    fixed_votes_count: 0,
+    trust_score: 100,
   },
   {
     id: "mock-2",
@@ -31,6 +36,11 @@ const MOCK_HAZARDS: Hazard[] = [
     reported_by: "system-demo",
     created_at: new Date(Date.now() - 1000 * 60 * 120).toISOString(), // 2h ago
     status: "active",
+    upvotes_count: 22,
+    downvotes_count: 1,
+    verifications_count: 9,
+    fixed_votes_count: 0,
+    trust_score: 96,
   },
   {
     id: "mock-3",
@@ -43,6 +53,11 @@ const MOCK_HAZARDS: Hazard[] = [
     reported_by: "system-demo",
     created_at: new Date(Date.now() - 1000 * 60 * 300).toISOString(), // 5h ago
     status: "active",
+    upvotes_count: 2,
+    downvotes_count: 3,
+    verifications_count: 1,
+    fixed_votes_count: 0,
+    trust_score: 30,
   },
   {
     id: "mock-4",
@@ -55,6 +70,11 @@ const MOCK_HAZARDS: Hazard[] = [
     reported_by: "system-demo",
     created_at: new Date(Date.now() - 1000 * 60 * 600).toISOString(), // 10h ago
     status: "active",
+    upvotes_count: 3,
+    downvotes_count: 0,
+    verifications_count: 1,
+    fixed_votes_count: 0,
+    trust_score: 80,
   },
 ];
 

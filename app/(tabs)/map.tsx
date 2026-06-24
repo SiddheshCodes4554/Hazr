@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { View, Text, Pressable, ActivityIndicator, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import WebView from "react-native-webview";
 import { useHazards } from "../../src/features/hazards/hooks/useHazards";
 import { useTheme } from "../../src/components/ThemeProvider";
 import { supabase } from "../../src/api/supabase";
-import { MapPin, Flame, Droplets, Construction, CloudLightning, Layers, Navigation } from "lucide-react-native";
+import { MapPin, Flame, Droplets, Construction, CloudLightning, Layers, Navigation, ShieldAlert } from "lucide-react-native";
 import { HazardCategory } from "../../src/features/hazards/types";
+import { useRouteSafety } from "../../src/features/routing/hooks/useRouteSafety";
+import { RoutePath } from "../../src/features/routing/types";
 
 
 export default function MapScreen() {
@@ -70,40 +72,17 @@ export default function MapScreen() {
     }
   }, [showHeatmap]);
 
-  // Calculate route avoiding high-severity hazard markers (memoized)
-  const getSafeRoutePoints = useCallback(() => {
-    // Standard direct route coordinates (e.g. San Francisco Mission to Financial District)
-    const baseRoute = [
-      [37.7599, -122.4368], // Start: Mission
-      [37.7710, -122.4280], // Midpoint 1
-      [37.7810, -122.4200], // Midpoint 2
-      [37.7949, -122.4117], // End: Financial District
-    ];
+  const baseRoutePoints: RoutePath = useMemo(() => [
+    [37.7599, -122.4368], // Start: Mission
+    [37.7710, -122.4280], // Midpoint 1
+    [37.7810, -122.4200], // Midpoint 2
+    [37.7949, -122.4117], // End: Financial District
+  ], []);
 
-    // If there are critical/high roadblocks or fires nearby, recalculate points to bend around them
-    const activeThreats = hazards?.filter(
-      (h) => (h.severity === "high" || h.severity === "critical") && h.status === "active"
-    ) || [];
+  const [selectedRouteId, setSelectedRouteId] = useState<"default" | "detour">("default");
+  const { defaultRoute, saferRoute } = useRouteSafety({ routePath: baseRoutePoints });
 
-    return baseRoute.map((pt) => {
-      let lat = pt[0];
-      let lng = pt[1];
-      
-      activeThreats.forEach((threat) => {
-        // Simple distance checking
-        const dist = Math.sqrt(
-          Math.pow(lat - threat.location_lat, 2) + Math.pow(lng - threat.location_lng, 2)
-        );
-        // If threat is too close to route node, offset longitude westward/eastward
-        if (dist < 0.008) {
-          lng -= 0.012; // detour around hazard
-          lat += 0.002;
-        }
-      });
-      
-      return [lat, lng];
-    });
-  }, [hazards]);
+  const activeRoute = selectedRouteId === "detour" && saferRoute ? saferRoute : defaultRoute;
 
   useEffect(() => {
     if (webViewRef.current) {
@@ -111,11 +90,11 @@ export default function MapScreen() {
         JSON.stringify({
           type: "toggle_route",
           show: showSafeRoute,
-          routePoints: showSafeRoute ? getSafeRoutePoints() : null,
+          routePoints: showSafeRoute ? activeRoute.coordinates : null,
         })
       );
     }
-  }, [showSafeRoute, getSafeRoutePoints]);
+  }, [showSafeRoute, activeRoute.coordinates]);
 
   const categories: { value: HazardCategory | "all"; label: string; icon: any }[] = [
     { value: "all", label: "All", icon: MapPin },
@@ -309,6 +288,82 @@ export default function MapScreen() {
             }
           }}
         />
+
+        {/* Route Safety Details Card Overlay */}
+        {showSafeRoute && (
+          <View className="absolute bottom-24 left-6 right-6 bg-card border border-border/40 rounded-2xl p-4 shadow-xl shadow-black/25">
+            <View className="flex-row justify-between items-center mb-3">
+              <View className="flex-row items-center">
+                <ShieldAlert size={12} color="hsl(var(--primary))" className="mr-1.5" />
+                <Text className="text-foreground font-black text-xs select-none">Route Safety Analyzer</Text>
+              </View>
+              <View className={`px-2 py-0.5 rounded-md border ${
+                activeRoute.analysis.safetyScore >= 80 
+                  ? "bg-green-500/10 border-green-500/20" 
+                  : activeRoute.analysis.safetyScore >= 40 
+                  ? "bg-amber-500/10 border-amber-500/20" 
+                  : "bg-red-500/10 border-red-500/20"
+              }`}>
+                <Text className={`text-[9px] font-black uppercase tracking-wider ${
+                  activeRoute.analysis.safetyScore >= 80 
+                    ? "text-green-600 dark:text-green-400" 
+                    : activeRoute.analysis.safetyScore >= 40 
+                    ? "text-amber-600 dark:text-amber-400" 
+                    : "text-red-600 dark:text-red-400"
+                }`}>
+                  {activeRoute.analysis.safetyScore}% Safe
+                </Text>
+              </View>
+            </View>
+
+            {/* Route Selection Tabs */}
+            {saferRoute && (
+              <View className="flex-row bg-muted/20 p-1 border border-border/20 rounded-xl mb-3">
+                <Pressable
+                  onPress={() => setSelectedRouteId("default")}
+                  className={`flex-1 py-1.5 rounded-lg items-center justify-center ${selectedRouteId === "default" ? "bg-card border border-border/30 shadow-sm" : ""}`}
+                >
+                  <Text className={`text-[10px] font-black ${selectedRouteId === "default" ? "text-foreground" : "text-muted-foreground"}`}>
+                    Direct ({defaultRoute.analysis.safetyScore}%)
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setSelectedRouteId("detour")}
+                  className={`flex-1 py-1.5 rounded-lg items-center justify-center ${selectedRouteId === "detour" ? "bg-primary" : ""}`}
+                >
+                  <Text className={`text-[10px] font-black ${selectedRouteId === "detour" ? "text-primary-foreground" : "text-muted-foreground"}`}>
+                    Detour ({saferRoute.analysis.safetyScore}%)
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {/* Explanation text */}
+            <Text className="text-foreground/80 text-[11px] leading-relaxed mb-3 select-text">
+              {activeRoute.explanation}
+            </Text>
+
+            {/* Threat List */}
+            {activeRoute.analysis.proximityThreats.length > 0 ? (
+              <ScrollView style={{ maxHeight: 75 }} nestedScrollEnabled={true}>
+                {activeRoute.analysis.proximityThreats.map((threat, idx) => (
+                  <View key={idx} className="flex-row items-center justify-between py-1 border-b border-border/10">
+                    <Text className="text-muted-foreground text-[10px] capitalize flex-1 pr-2 select-text" numberOfLines={1}>
+                      • {threat.title} ({threat.distanceMeters}m away)
+                    </Text>
+                    <Text className="text-destructive text-[9px] font-black">
+                      +{threat.riskPoints} risk
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <Text className="text-green-600 dark:text-green-400 text-[10px] font-black select-none">
+                ✓ No active threats detected along this path.
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Floating Map Actions Panel */}
         <View className="absolute bottom-6 left-6 right-6 flex-row justify-between">

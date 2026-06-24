@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, Pressable, RefreshControl, ScrollView, Image } from "react-native";
+import { View, Text, FlatList, Pressable, RefreshControl, ScrollView, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import NetInfo from "@react-native-community/netinfo";
 import { useHazards } from "../../src/features/hazards/hooks/useHazards";
@@ -8,6 +8,9 @@ import { useSyncQueue } from "../../src/features/offline/hooks/useSyncQueue";
 import { useProfile } from "../../src/features/auth/hooks/useProfile";
 import { useResolveHazard } from "../../src/features/hazards/hooks/useResolveHazard";
 import { useAssessRisk } from "../../src/features/hazards/hooks/useAssessRisk";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "../../src/api/supabase";
+import { useHazardValidation } from "../../src/features/hazards/hooks/useHazardValidation";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../src/components/Card";
 import { Skeleton } from "../../src/components/Skeleton";
 import { Button } from "../../src/components/Button";
@@ -25,6 +28,10 @@ import {
   Brain,
   ChevronDown,
   ChevronUp,
+  ThumbsUp,
+  ThumbsDown,
+  ShieldAlert,
+  BadgeCheck,
 } from "lucide-react-native";
 import { HazardSeverity } from "../../src/features/hazards/types";
 
@@ -190,10 +197,47 @@ export default function FeedScreen() {
   const { isSyncing, processQueue } = useSyncQueue();
   const { isModerator, isMunicipality, role } = useProfile();
   const resolveHazardMutation = useResolveHazard();
+  const { userValidations, submitValidation } = useHazardValidation();
+
+  // Load all user reputations to display next to reports
+  const { data: profilesList } = useQuery({
+    queryKey: ["profiles_reputations"],
+    queryFn: async () => {
+      try {
+        const { data } = await supabase.from("profiles").select("email, reputation");
+        return data || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const repMap = React.useMemo(() => {
+    const map: Record<string, number> = {};
+    profilesList?.forEach((p: any) => {
+      if (p.email) map[p.email] = p.reputation ?? 100;
+    });
+    return map;
+  }, [profilesList]);
   
   const [isOnline, setIsOnline] = useState(true);
   const [selectedSeverity, setSelectedSeverity] = useState<HazardSeverity | "all">("all");
   const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
+  const [revealedSpam, setRevealedSpam] = useState<Record<string, boolean>>({});
+
+  const handleValidationAction = (
+    hazardId: string,
+    action: "upvote" | "downvote" | "verify" | "fixed"
+  ) => {
+    submitValidation(
+      { hazardId, action },
+      {
+        onError: (err: any) => {
+          Alert.alert("Action Failed", err.message || "Could not complete validation.");
+        },
+      }
+    );
+  };
 
   // Track network connectivity
   useEffect(() => {
@@ -373,6 +417,60 @@ export default function FeedScreen() {
           }
           renderItem={({ item }) => {
             const isExpanded = !!expandedCards[item.id];
+            const userVal = userValidations[item.id] || {
+              vote: 0,
+              verified: false,
+              marked_fixed: false,
+            };
+
+            const trust = item.trust_score !== undefined ? item.trust_score : 50;
+            const totalVotes = (item.upvotes_count || 0) + (item.downvotes_count || 0);
+            const isSpam = trust < 25 && totalVotes >= 3;
+            const isRevealed = !!revealedSpam[item.id];
+
+            const getTrustScoreColor = (score: number) => {
+              if (score >= 80) return "bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20";
+              if (score >= 40) return "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20";
+              return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
+            };
+
+            const getReporterReputation = () => {
+              const rep = repMap[item.reported_by];
+              return rep !== undefined ? rep : 100;
+            };
+
+            if (isSpam && !isRevealed) {
+              return (
+                <Card className="mb-4 border-red-500/20 bg-red-500/5 opacity-80">
+                  <CardHeader className="flex-row items-center justify-between pb-2">
+                    <View className="flex-row items-center">
+                      <ShieldAlert size={18} color="hsl(var(--destructive))" className="mr-2" />
+                      <Text className="text-destructive font-black text-xs select-none">
+                        POTENTIAL SPAM REPORT
+                      </Text>
+                    </View>
+                    <View className={`px-2 py-0.5 rounded-md border ${getTrustScoreColor(trust)}`}>
+                      <Text className="text-[9px] font-black uppercase tracking-wider">
+                        {trust}% Trust
+                      </Text>
+                    </View>
+                  </CardHeader>
+                  <CardContent className="pt-1">
+                    <Text className="text-muted-foreground text-xs leading-relaxed mb-3.5 select-none">
+                      This report was flagged by the community due to very low credibility. The content is collapsed to protect community watch boards.
+                    </Text>
+                    <Button
+                      label="View Report Content"
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/30 text-destructive text-[11px] py-1.5 active:bg-destructive/10"
+                      onPress={() => setRevealedSpam((prev) => ({ ...prev, [item.id]: true }))}
+                    />
+                  </CardContent>
+                </Card>
+              );
+            }
+
             return (
               <Card className={`mb-4 ${item.status === "resolved" ? "opacity-75" : ""}`}>
                 <CardHeader className="flex-row items-start justify-between">
@@ -382,16 +480,22 @@ export default function FeedScreen() {
                     </View>
                     <View className="flex-1">
                       <CardTitle className="leading-tight text-sm">{item.title}</CardTitle>
-                      <CardDescription className="capitalize">
-                        {item.category} • {formatTime(item.created_at)}
+                      <CardDescription className="capitalize font-medium text-[10.5px]">
+                        {item.category} • {formatTime(item.created_at)} • Rep: {getReporterReputation()}
                       </CardDescription>
                     </View>
                   </View>
                   
                   {/* Badges Container */}
-                  <View className="flex-row items-center">
+                  <View className="flex-row items-center gap-1.5">
+                    {/* Trust Score Badge */}
+                    <View className={`px-2 py-0.5 rounded-md border ${getTrustScoreColor(trust)}`}>
+                      <Text className="text-[9px] font-black uppercase tracking-wider">
+                        {trust}% Trust
+                      </Text>
+                    </View>
                     {item.status === "resolved" && (
-                      <View className="bg-green-500/10 border border-green-500/25 px-2 py-0.5 rounded-md mr-1.5 flex-row items-center">
+                      <View className="bg-green-500/10 border border-green-500/25 px-2 py-0.5 rounded-md flex-row items-center">
                         <CheckCircle size={10} color="hsl(142, 70%, 45%)" className="mr-0.5" />
                         <Text className="text-[9px] text-green-600 dark:text-green-400 font-bold uppercase tracking-wider">
                           Resolved
@@ -417,10 +521,77 @@ export default function FeedScreen() {
                     </View>
                   )}
 
+                  {/* Community Validation Panel */}
+                  <View className="flex-row items-center justify-between border-t border-border/25 pt-3.5 mt-2 gap-2">
+                    <View className="flex-row items-center gap-1.5">
+                      {/* Upvote Button */}
+                      <Pressable
+                        onPress={() => handleValidationAction(item.id, "upvote")}
+                        className={`flex-row items-center px-3 py-2 rounded-xl border ${
+                          userVal.vote === 1
+                            ? "bg-green-500/15 border-green-500/35"
+                            : "bg-muted/10 border-border/20 active:bg-muted/20"
+                        }`}
+                      >
+                        <ThumbsUp size={12} color={userVal.vote === 1 ? "hsl(142, 70%, 45%)" : "hsl(var(--muted-foreground))"} />
+                        <Text className={`text-[10px] font-black ml-1.5 ${userVal.vote === 1 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"}`}>
+                          {item.upvotes_count || 0}
+                        </Text>
+                      </Pressable>
+
+                      {/* Downvote Button */}
+                      <Pressable
+                        onPress={() => handleValidationAction(item.id, "downvote")}
+                        className={`flex-row items-center px-3 py-2 rounded-xl border ${
+                          userVal.vote === -1
+                            ? "bg-red-500/15 border-red-500/35"
+                            : "bg-muted/10 border-border/20 active:bg-muted/20"
+                        }`}
+                      >
+                        <ThumbsDown size={12} color={userVal.vote === -1 ? "hsl(0, 84%, 60%)" : "hsl(var(--muted-foreground))"} />
+                        <Text className={`text-[10px] font-black ml-1.5 ${userVal.vote === -1 ? "text-red-600 dark:text-red-400" : "text-muted-foreground"}`}>
+                          {item.downvotes_count || 0}
+                        </Text>
+                      </Pressable>
+                    </View>
+
+                    <View className="flex-row items-center gap-1.5">
+                      {/* Verify Active Button */}
+                      <Pressable
+                        onPress={() => handleValidationAction(item.id, "verify")}
+                        className={`flex-row items-center px-3 py-2 rounded-xl border ${
+                          userVal.verified
+                            ? "bg-primary/15 border-primary/35"
+                            : "bg-muted/10 border-border/20 active:bg-muted/20"
+                        }`}
+                      >
+                        <BadgeCheck size={12} color={userVal.verified ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"} />
+                        <Text className={`text-[10px] font-black ml-1.5 ${userVal.verified ? "text-primary" : "text-muted-foreground"}`}>
+                          Verify
+                        </Text>
+                      </Pressable>
+
+                      {/* Fixed Button */}
+                      <Pressable
+                        onPress={() => handleValidationAction(item.id, "fixed")}
+                        className={`flex-row items-center px-3 py-2 rounded-xl border ${
+                          userVal.marked_fixed
+                            ? "bg-cyan-500/15 border-cyan-500/35"
+                            : "bg-muted/10 border-border/20 active:bg-muted/20"
+                        }`}
+                      >
+                        <CheckCircle size={12} color={userVal.marked_fixed ? "#06b6d4" : "hsl(var(--muted-foreground))"} />
+                        <Text className={`text-[10px] font-black ml-1.5 ${userVal.marked_fixed ? "text-cyan-600 dark:text-cyan-400" : "text-muted-foreground"}`}>
+                          Fixed
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+
                   {/* Collapsible toggle for Risk Assessment */}
                   <Pressable
                     onPress={() => toggleExpand(item.id)}
-                    className="flex-row justify-between items-center py-2.5 px-3 border border-border/30 rounded-xl bg-card active:bg-muted/10 mt-1"
+                    className="flex-row justify-between items-center py-2.5 px-3 border border-border/30 rounded-xl bg-card active:bg-muted/10 mt-3"
                   >
                     <View className="flex-row items-center">
                       <Brain size={13} color="hsl(var(--primary))" className="mr-1.5" />
