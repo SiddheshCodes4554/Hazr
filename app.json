@@ -46,7 +46,11 @@
           "cameraPermission": "Allow Hazr to access your camera to capture and automatically detect regional hazards.",
           "microphonePermission": "Allow Hazr to access your microphone if needed."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-status-bar",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

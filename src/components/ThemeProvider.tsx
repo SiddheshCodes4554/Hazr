@@ -22,7 +22,9 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Resolve current visual theme (light or dark)
   const activeScheme =
-    theme === "system" ? systemColorScheme || "light" : theme;
+    theme === "system"
+      ? (systemColorScheme === "dark" ? "dark" : "light")
+      : theme;
 
   useEffect(() => {
     // Notify NativeWind of color scheme changes

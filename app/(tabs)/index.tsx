@@ -198,6 +198,7 @@ export default function FeedScreen() {
   const { isModerator, isMunicipality, role } = useProfile();
   const resolveHazardMutation = useResolveHazard();
   const { userValidations, submitValidation } = useHazardValidation();
+  const [mountTime] = useState(() => Date.now());
 
   // Load all user reputations to display next to reports
   const { data: profilesList } = useQuery({
@@ -273,7 +274,7 @@ export default function FeedScreen() {
   const formatTime = (isoString: string) => {
     try {
       const date = new Date(isoString);
-      const diffMs = Date.now() - date.getTime();
+      const diffMs = mountTime - date.getTime();
       const diffMins = Math.floor(diffMs / 60000);
       
       if (diffMins < 1) return "Just now";

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, Text, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -54,35 +54,19 @@ export default function ReportScreen() {
     hazardAddress?: string;
   }>();
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<HazardCategory>("other");
-  const [severity, setSeverity] = useState<HazardSeverity>("medium");
-  const [attachedPhoto, setAttachedPhoto] = useState<string | null>(null);
+  const [title, setTitle] = useState(() => params.preTitle || "");
+  const [description, setDescription] = useState(() => params.preDesc || "");
+  const [category, setCategory] = useState<HazardCategory>(() => params.preCategory || "other");
+  const [severity, setSeverity] = useState<HazardSeverity>(() => params.preSeverity || "medium");
+  const [attachedPhoto, setAttachedPhoto] = useState<string | null>(() => params.photoUrl || null);
 
   // States to hold precise location data
-  const [reporterLat, setReporterLat] = useState<number | null>(null);
-  const [reporterLng, setReporterLng] = useState<number | null>(null);
-  const [hazardLat, setHazardLat] = useState<number | null>(null);
-  const [hazardLng, setHazardLng] = useState<number | null>(null);
-  const [reporterAddress, setReporterAddress] = useState<string | null>(null);
-  const [hazardAddress, setHazardAddress] = useState<string | null>(null);
-
-  // Pre-fill inputs when returning from the camera analysis or location selection screen
-  useEffect(() => {
-    if (params.photoUrl) setAttachedPhoto(params.photoUrl);
-    if (params.preTitle) setTitle(params.preTitle);
-    if (params.preDesc) setDescription(params.preDesc);
-    if (params.preCategory) setCategory(params.preCategory);
-    if (params.preSeverity) setSeverity(params.preSeverity);
-    
-    if (params.reporterLat) setReporterLat(parseFloat(params.reporterLat));
-    if (params.reporterLng) setReporterLng(parseFloat(params.reporterLng));
-    if (params.hazardLat) setHazardLat(parseFloat(params.hazardLat));
-    if (params.hazardLng) setHazardLng(parseFloat(params.hazardLng));
-    if (params.reporterAddress) setReporterAddress(params.reporterAddress);
-    if (params.hazardAddress) setHazardAddress(params.hazardAddress);
-  }, [params]);
+  const [reporterLat, setReporterLat] = useState<number | null>(() => params.reporterLat ? parseFloat(params.reporterLat) : null);
+  const [reporterLng, setReporterLng] = useState<number | null>(() => params.reporterLng ? parseFloat(params.reporterLng) : null);
+  const [hazardLat, setHazardLat] = useState<number | null>(() => params.hazardLat ? parseFloat(params.hazardLat) : null);
+  const [hazardLng, setHazardLng] = useState<number | null>(() => params.hazardLng ? parseFloat(params.hazardLng) : null);
+  const [reporterAddress, setReporterAddress] = useState<string | null>(() => params.reporterAddress || null);
+  const [hazardAddress, setHazardAddress] = useState<string | null>(() => params.hazardAddress || null);
 
   const handleSelectLocation = () => {
     router.replace({

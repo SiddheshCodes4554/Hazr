@@ -29,6 +29,7 @@ export const useIntelligentAlerts = () => {
   const notifiedNearbyHazards = useRef<Set<string>>(new Set());
   const hasAlertedFlood = useRef(false);
   const hasAlertedRoute = useRef(false);
+  const [dangerCount, setDangerCount] = useState(0);
 
   // Define active travel route path to monitor
   const activeRoutePath: Coordinate[] = useMemo(() => [
@@ -65,6 +66,7 @@ export const useIntelligentAlerts = () => {
           // Loop back to start SOMA coordinate
           console.log("[LocationSimulator] Resetting coordinates back to SOMA start.");
           notifiedDangerZones.current.clear(); // Reset danger zone flags to re-test
+          setDangerCount(0);
           return 37.7749;
         }
       });
@@ -82,12 +84,14 @@ export const useIntelligentAlerts = () => {
       (h) => h.status === "active" && (h.severity === "high" || h.severity === "critical")
     );
 
+    let updated = false;
     activeThreats.forEach((h) => {
       const distance = getDistanceMeters(userLat, userLng, h.location_lat, h.location_lng);
       
       // If user enters danger zone (< 400 meters) and hasn't been warned about this hazard yet
       if (distance <= 400 && !notifiedDangerZones.current.has(h.id)) {
         notifiedDangerZones.current.add(h.id);
+        updated = true;
         
         sendLocalNotification(
           "⚠️ Danger Zone Alert!",
@@ -96,6 +100,10 @@ export const useIntelligentAlerts = () => {
         );
       }
     });
+
+    if (updated) {
+      setDangerCount(notifiedDangerZones.current.size);
+    }
   }, [userLat, userLng, hazards]);
 
   // 3. Monitor Supabase Realtime channel for new nearby hazards (< 1000m of user)
@@ -175,7 +183,7 @@ export const useIntelligentAlerts = () => {
 
   return {
     userLocation: { lat: userLat, lng: userLng },
-    notifiedDangerCount: notifiedDangerZones.current.size,
+    notifiedDangerCount: dangerCount,
   };
 };
 
